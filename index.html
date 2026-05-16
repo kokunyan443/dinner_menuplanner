@@ -4,6 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>夕食献立アプリ</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#3d7a56">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="献立アプリ">
   <style>
     :root {
       --primary: #3d7a56;
@@ -188,9 +194,74 @@
     .generate-area { text-align: center; }
     .no-ing-warn { background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 10px 14px; font-size: 0.83rem; color: #856404; margin-bottom: 14px; }
 
-    @media (max-width: 480px) {
+    /* ===== Bottom Navigation (mobile) ===== */
+    .bottom-nav {
+      display: none;
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: #fff;
+      border-top: 1px solid var(--border);
+      z-index: 100;
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+    .bottom-nav-inner { display: flex; }
+    .bottom-nav-btn {
+      flex: 1; padding: 10px 0 8px;
+      border: none; background: transparent;
+      display: flex; flex-direction: column; align-items: center; gap: 3px;
+      font-size: 0.7rem; font-family: inherit; color: var(--text-sub);
+      cursor: pointer; transition: color 0.18s;
+    }
+    .bottom-nav-btn .bnav-icon { font-size: 1.35rem; line-height: 1; }
+    .bottom-nav-btn.active { color: var(--primary); font-weight: 700; }
+    .bottom-nav-btn:active { opacity: 0.6; }
+
+    /* Touch active feedback */
+    .btn:active, .pill:active, .cuisine-btn:active, .rsy2-type-btn:active { opacity: 0.7; }
+    .ing-chip-edit:active, .ing-chip-del:active { opacity: 0.65; }
+
+    @media (max-width: 600px) {
+      /* Show bottom nav, hide top tabs */
+      .bottom-nav { display: block; }
+      .tabs { display: none; }
+      .app-header { padding-bottom: 14px; }
+
+      /* Content padding so bottom nav doesn't overlap */
+      .page { padding-bottom: calc(68px + env(safe-area-inset-bottom)); }
+
+      /* Toast above bottom nav */
+      .toast { bottom: calc(72px + env(safe-area-inset-bottom)); }
+
+      /* Prevent iOS zoom on inputs */
+      input[type=text], input[type=number], select,
+      .quick-add-row input { font-size: 16px; }
+
+      /* Larger touch targets for chip buttons */
+      .ing-chip-edit, .ing-chip-del {
+        width: 36px; height: 36px; font-size: 0.85rem;
+      }
+
+      /* Nutrition grid 2-column on mobile */
       .nutrition-grid { grid-template-columns: repeat(2, 1fr); }
-      .tab-btn { padding: 7px 12px; font-size: 0.8rem; }
+
+      /* Group pills scroll horizontally */
+      .group-pills { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 4px; }
+      .pill { white-space: nowrap; flex-shrink: 0; }
+
+      /* Cuisine buttons scroll */
+      .cuisine-btns { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      .cuisine-btn { flex-shrink: 0; }
+
+      /* RSY-2 type buttons scroll */
+      .rsy2-type-row { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      .rsy2-type-btn { flex-shrink: 0; }
+
+      /* Modal better on small screens */
+      .modal { width: 96%; padding: 18px 16px; }
+      .dish-edit-overlay .modal { max-height: 88vh; }
+
+      /* Dish edit button larger tap area */
+      .btn-dish-edit { padding: 8px 14px; font-size: 0.85rem; }
     }
   </style>
 </head>
@@ -327,6 +398,24 @@
     保存済みの献立はありません
   </div>
 </div>
+
+<!-- ===== Bottom Navigation (mobile only) ===== -->
+<nav class="bottom-nav" id="bottom-nav">
+  <div class="bottom-nav-inner">
+    <button class="bottom-nav-btn active" id="bnav-ingredients" onclick="switchTabMobile('ingredients')">
+      <span class="bnav-icon">🥦</span>
+      <span>食材登録</span>
+    </button>
+    <button class="bottom-nav-btn" id="bnav-create" onclick="switchTabMobile('create')">
+      <span class="bnav-icon">🍴</span>
+      <span>献立作成</span>
+    </button>
+    <button class="bottom-nav-btn" id="bnav-saved" onclick="switchTabMobile('saved')">
+      <span class="bnav-icon">📋</span>
+      <span>保存済み</span>
+    </button>
+  </div>
+</nav>
 
 <!-- Edit modal -->
 <div class="overlay" id="edit-overlay" onclick="closeModal()">
@@ -480,8 +569,24 @@ function switchTab(name) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('page-' + name).classList.add('active');
   event.currentTarget.classList.add('active');
+  syncBottomNav(name);
   if (name === 'ingredients') renderIngredients();
   if (name === 'saved') renderSaved();
+}
+
+function switchTabMobile(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  syncBottomNav(name);
+  if (name === 'ingredients') renderIngredients();
+  if (name === 'saved') renderSaved();
+}
+
+function syncBottomNav(name) {
+  document.querySelectorAll('.bottom-nav-btn').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById('bnav-' + name);
+  if (btn) btn.classList.add('active');
 }
 
 // ========== INGREDIENTS ==========
@@ -1092,6 +1197,40 @@ document.getElementById('ing-name').addEventListener('keydown', e => { if (e.key
 
 // Init
 renderIngredients();
+
+// ========== PWA ==========
+// iOS用アイコン（canvas生成）
+(function() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 180; canvas.height = 180;
+  const ctx = canvas.getContext('2d');
+  const r = 36, w = 180, h = 180;
+  ctx.fillStyle = '#3d7a56';
+  ctx.beginPath();
+  ctx.moveTo(r, 0); ctx.lineTo(w - r, 0);
+  ctx.quadraticCurveTo(w, 0, w, r);
+  ctx.lineTo(w, h - r);
+  ctx.quadraticCurveTo(w, h, w - r, h);
+  ctx.lineTo(r, h);
+  ctx.quadraticCurveTo(0, h, 0, h - r);
+  ctx.lineTo(0, r);
+  ctx.quadraticCurveTo(0, 0, r, 0);
+  ctx.closePath();
+  ctx.fill();
+  ctx.font = '108px -apple-system, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('🍽️', 90, 94);
+  const link = document.createElement('link');
+  link.rel = 'apple-touch-icon';
+  link.href = canvas.toDataURL('image/png');
+  document.head.appendChild(link);
+})();
+
+// Service Worker登録
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').catch(() => {});
+}
 </script>
 </body>
 </html>
