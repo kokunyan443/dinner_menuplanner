@@ -1,0 +1,1097 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>夕食献立アプリ</title>
+  <style>
+    :root {
+      --primary: #3d7a56;
+      --primary-light: #5a9e73;
+      --primary-pale: #e8f5ee;
+      --accent: #e07b00;
+      --accent-pale: #fff3e0;
+      --bg: #f5f3ef;
+      --card: #ffffff;
+      --text: #2d2d2d;
+      --text-sub: #666;
+      --border: #ddd9d2;
+      --shadow: 0 2px 8px rgba(0,0,0,0.07);
+      --radius: 12px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, 'Hiragino Sans', 'Yu Gothic UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    /* Header / Tabs */
+    .app-header { background: var(--primary); color: #fff; padding: 14px 16px 0; box-shadow: 0 2px 6px rgba(0,0,0,0.15); }
+    .header-top { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+    .app-icon { font-size: 1.4rem; }
+    .app-title { font-size: 1.15rem; font-weight: 700; }
+    .tabs { display: flex; gap: 3px; }
+    .tab-btn { padding: 8px 18px; border: none; border-radius: 8px 8px 0 0; cursor: pointer; font-size: 0.88rem; font-family: inherit; font-weight: 500; background: rgba(255,255,255,0.18); color: rgba(255,255,255,0.82); transition: all 0.2s; }
+    .tab-btn.active { background: var(--bg); color: var(--primary); font-weight: 700; }
+
+    /* Page layout */
+    .page { display: none; padding: 16px; max-width: 680px; margin: 0 auto; }
+    .page.active { display: block; }
+
+    /* Card */
+    .card { background: var(--card); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow); margin-bottom: 14px; }
+    .card-title { font-size: 0.95rem; font-weight: 700; color: var(--primary); margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+
+    /* Group filter pills */
+    .group-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+    .pill { padding: 4px 13px; border-radius: 20px; border: 1.5px solid var(--border); background: #fff; cursor: pointer; font-size: 0.8rem; font-family: inherit; transition: all 0.18s; white-space: nowrap; }
+    .pill.active { background: var(--primary); border-color: var(--primary); color: #fff; font-weight: 600; }
+
+    /* Ingredient chips */
+    .ing-list { display: flex; flex-direction: column; gap: 10px; }
+    .ing-chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 0 2px; min-height: 28px; }
+    .ing-chip { display: inline-flex; align-items: center; gap: 4px; background: var(--bg); border: 1.5px solid var(--border); border-radius: 20px; padding: 5px 5px 5px 11px; font-size: 0.85rem; transition: border-color 0.15s; }
+    .ing-chip:hover { border-color: #b8d0c8; }
+    .ing-chip-name { font-weight: 600; }
+    .ing-chip-amount { color: var(--text-sub); font-size: 0.78rem; margin: 0 2px; }
+    .ing-chip-edit { width: 22px; height: 22px; border: none; border-radius: 50%; background: #fef3c7; color: #b45309; cursor: pointer; font-size: 0.7rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background 0.15s; }
+    .ing-chip-edit:hover { background: #fde68a; }
+    .ing-chip-del { width: 22px; height: 22px; border: none; border-radius: 50%; background: #fee2e2; color: #dc2626; cursor: pointer; font-size: 0.8rem; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background 0.15s; }
+    .ing-chip-del:hover { background: #fca5a5; }
+    .ing-chips-empty { font-size: 0.8rem; color: #bbb; padding: 4px 2px; }
+
+    /* Quick-add inline */
+    .btn-add-here { padding: 2px 10px; border: 1.5px dashed var(--primary); border-radius: 12px; background: transparent; color: var(--primary); font-size: 0.78rem; cursor: pointer; font-family: inherit; font-weight: 700; transition: all 0.15s; white-space: nowrap; }
+    .btn-add-here:hover { background: var(--primary-pale); }
+    .quick-add-row { display: flex; gap: 6px; align-items: center; padding: 8px 0 4px; flex-wrap: wrap; border-top: 1px dashed var(--border); margin-top: 6px; }
+    .quick-add-row input { flex: 1; min-width: 80px; padding: 7px 9px; font-size: 0.83rem; border-radius: 8px; border: 1.5px solid var(--border); font-family: inherit; outline: none; background: #fff; }
+    .quick-add-row input:focus { border-color: var(--primary); }
+    .btn-qa-add { padding: 7px 14px; background: var(--primary); color: #fff; border: none; border-radius: 8px; font-size: 0.83rem; font-family: inherit; font-weight: 700; cursor: pointer; white-space: nowrap; }
+    .btn-qa-add:hover { background: var(--primary-light); }
+    .btn-qa-cancel { width: 30px; height: 30px; background: var(--border); color: var(--text-sub); border: none; border-radius: 50%; font-size: 0.85rem; font-family: inherit; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .btn-qa-cancel:hover { background: #ccc9c0; }
+
+    /* Form */
+    .add-form { display: flex; flex-direction: column; gap: 10px; }
+    .form-row { display: flex; gap: 8px; flex-wrap: wrap; }
+    .form-group { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 120px; }
+    .form-group label { font-size: 0.78rem; color: var(--text-sub); font-weight: 600; }
+    input[type=text], input[type=number], select {
+      padding: 8px 10px; border: 1.5px solid var(--border); border-radius: 8px;
+      font-size: 0.88rem; font-family: inherit; outline: none; transition: border-color 0.2s; background: #fff;
+    }
+    input:focus, select:focus { border-color: var(--primary); }
+    .btn { padding: 9px 20px; border: none; border-radius: 8px; cursor: pointer; font-size: 0.88rem; font-family: inherit; font-weight: 700; transition: all 0.2s; }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-light); }
+    .btn-secondary { background: var(--border); color: var(--text); }
+    .btn-secondary:hover { background: #ccc9c0; }
+    .btn-danger { background: #fee2e2; color: #dc2626; }
+    .btn-lg { padding: 13px 24px; font-size: 1rem; width: 100%; }
+
+    /* RSY-2 toggle */
+    .rsy2-box { display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; background: var(--accent-pale); border: 1.5px solid #f0c060; border-radius: 10px; margin-bottom: 14px; cursor: pointer; }
+    .rsy2-box input[type=checkbox] { width: 17px; height: 17px; margin-top: 2px; flex-shrink: 0; accent-color: var(--accent); }
+    .rsy2-box label { cursor: pointer; }
+    .rsy2-title { font-weight: 700; font-size: 0.92rem; color: #7a4a00; }
+    .rsy2-sub { font-size: 0.78rem; color: #a06000; margin-top: 2px; }
+
+    /* RSY-2 dish type selector */
+    .rsy2-type-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .rsy2-type-btn { padding: 4px 11px; border-radius: 15px; border: 1.5px solid #f0c060; background: #fff; font-size: 0.78rem; font-family: inherit; cursor: pointer; font-weight: 500; transition: all 0.18s; }
+    .rsy2-type-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+
+    /* Meal display */
+    .meal-section-label { font-size: 0.75rem; font-weight: 700; color: var(--text-sub); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; margin-top: 14px; }
+    .dish-card { background: var(--bg); border: 1.5px solid var(--border); border-radius: 10px; padding: 11px 13px; margin-bottom: 7px; }
+    .dish-card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+    .dish-name { font-weight: 700; font-size: 0.95rem; margin-bottom: 3px; }
+    .dish-desc { font-size: 0.8rem; color: var(--text-sub); margin-bottom: 3px; }
+    .dish-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
+    .tag { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 0.72rem; font-weight: 600; }
+    .tag-rsy2 { background: #fef3c7; color: #b45309; border: 1px solid #f0c060; }
+    .tag-ing { background: var(--primary-pale); color: var(--primary); border: 1px solid #b8e0c8; }
+    /* 料理スタイルフィルター */
+    .cuisine-row { background: #fff; border-radius: 10px; padding: 10px 14px; box-shadow: var(--shadow); margin-bottom: 14px; }
+    .cuisine-label { font-size: 0.8rem; font-weight: 700; color: var(--text-sub); display: block; margin-bottom: 7px; }
+    .cuisine-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+    .cuisine-btn { padding: 5px 14px; border-radius: 20px; border: 1.5px solid var(--border); background: #fff; font-size: 0.82rem; font-family: inherit; cursor: pointer; font-weight: 500; transition: all 0.18s; }
+    .cuisine-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; font-weight: 700; }
+
+    /* 材料内訳トグル */
+    .dish-name-btn { background: none; border: none; padding: 0; text-align: left; cursor: pointer; font-family: inherit; width: 100%; }
+    .dish-name-inner { display: flex; align-items: center; gap: 5px; }
+    .dish-expand-icon { font-size: 0.75rem; color: var(--text-sub); transition: transform 0.2s; display: inline-block; }
+    .dish-ings { margin-top: 8px; padding: 8px 10px; background: var(--bg); border-radius: 8px; display: none; }
+    .dish-ings ul { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 4px; }
+    .dish-ings li { font-size: 0.78rem; color: var(--text-sub); background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 2px 9px; }
+
+    .btn-dish-edit { padding: 4px 11px; border: 1.5px solid var(--border); border-radius: 8px; background: #fff; color: var(--text-sub); font-size: 0.78rem; font-family: inherit; font-weight: 600; cursor: pointer; white-space: nowrap; flex-shrink: 0; transition: all 0.15s; }
+    .btn-dish-edit:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-pale); }
+    .btn-dish-del-modal { padding: 8px 16px; background: #fee2e2; color: #dc2626; border: none; border-radius: 8px; font-size: 0.88rem; font-family: inherit; font-weight: 700; cursor: pointer; transition: background 0.15s; }
+    .btn-dish-del-modal:hover { background: #fca5a5; }
+    .recipe-option { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border: 1.5px solid var(--border); border-radius: 10px; cursor: pointer; transition: all 0.15s; background: #fff; }
+    .recipe-option:hover { border-color: var(--primary); background: var(--primary-pale); }
+    .recipe-option.has-ing { border-left: 3px solid var(--primary); }
+    .recipe-option-name { font-weight: 700; font-size: 0.88rem; margin-bottom: 2px; }
+    .recipe-option-desc { font-size: 0.78rem; color: var(--text-sub); margin-bottom: 3px; }
+    .recipe-option-nut { font-size: 0.72rem; color: var(--text-sub); }
+    .recipe-ing-badge { font-size: 0.68rem; font-weight: 700; color: var(--primary); background: var(--primary-pale); padding: 1px 6px; border-radius: 8px; margin-left: 5px; }
+
+    /* Nutrition */
+    .nutrition-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 10px; }
+    .nut-cell { background: var(--bg); border-radius: 9px; padding: 10px 8px; text-align: center; border: 1.5px solid var(--border); }
+    .nut-label { font-size: 0.7rem; color: var(--text-sub); margin-bottom: 3px; }
+    .nut-value { font-size: 1rem; font-weight: 700; }
+    .nut-target { font-size: 0.68rem; color: var(--text-sub); margin-top: 1px; }
+    .nut-ok { color: #16a34a; }
+    .nut-ng { color: #dc2626; }
+    .nut-bar-wrap { margin-bottom: 6px; }
+    .nut-bar-label { display: flex; justify-content: space-between; font-size: 0.73rem; margin-bottom: 2px; }
+    .nut-bar-bg { height: 7px; background: var(--border); border-radius: 4px; overflow: hidden; }
+    .nut-bar-fill { height: 100%; border-radius: 4px; transition: width 0.6s; }
+    .bar-kcal { background: #f97316; }
+    .bar-protein { background: #3b82f6; }
+    .bar-carb { background: #a855f7; }
+    .bar-salt { background: #6b7280; }
+
+    /* Saved meals */
+    .saved-card { background: var(--card); border-radius: var(--radius); padding: 14px; box-shadow: var(--shadow); margin-bottom: 12px; }
+    .saved-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .saved-date { font-weight: 700; color: var(--primary); font-size: 0.92rem; }
+    .saved-dishes { font-size: 0.83rem; color: var(--text-sub); line-height: 1.6; }
+    .saved-nut { display: flex; gap: 10px; margin-top: 6px; font-size: 0.78rem; flex-wrap: wrap; }
+    .saved-nut span { background: var(--bg); padding: 2px 8px; border-radius: 10px; color: var(--text-sub); }
+
+    /* Empty state */
+    .empty { text-align: center; color: var(--text-sub); padding: 36px 16px; font-size: 0.9rem; }
+    .empty-icon { font-size: 2.5rem; margin-bottom: 8px; }
+
+    /* Toast */
+    .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #1f2937; color: #fff; padding: 10px 20px; border-radius: 22px; font-size: 0.88rem; font-weight: 600; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 999; white-space: nowrap; }
+    .toast.show { opacity: 1; }
+
+    /* Modal */
+    .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 200; align-items: center; justify-content: center; }
+    .overlay.open { display: flex; }
+    .modal { background: #fff; border-radius: 16px; padding: 22px; width: 92%; max-width: 380px; box-shadow: 0 8px 32px rgba(0,0,0,0.18); }
+    .modal-title { font-size: 1rem; font-weight: 700; margin-bottom: 14px; }
+    .modal-actions { display: flex; gap: 8px; margin-top: 16px; justify-content: flex-end; }
+
+    .group-section { background: #fff; border-radius: 12px; padding: 11px 13px 10px; box-shadow: var(--shadow); }
+    .group-section-header { display: flex; justify-content: space-between; align-items: center; font-size: 0.88rem; font-weight: 700; color: var(--primary); padding-bottom: 7px; border-bottom: 2px solid var(--primary-pale); margin-bottom: 6px; }
+    .group-section-header-left { display: flex; align-items: center; gap: 6px; }
+    .group-count { font-size: 0.72rem; font-weight: 500; color: var(--text-sub); background: var(--primary-pale); padding: 1px 8px; border-radius: 10px; }
+
+    .rsy2-mini { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 11px 14px; background: var(--accent-pale); border: 1.5px solid #f0c060; border-radius: 10px; margin: 10px 0 8px; cursor: pointer; }
+    .rsy2-mini input[type=checkbox] { width: 17px; height: 17px; flex-shrink: 0; accent-color: var(--accent); border: none; padding: 0; }
+    .rsy2-mini-label { font-size: 0.9rem; font-weight: 700; color: #7a4a00; cursor: pointer; }
+
+    .divider { height: 1px; background: var(--border); margin: 12px 0; }
+    .generate-area { text-align: center; }
+    .no-ing-warn { background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 10px 14px; font-size: 0.83rem; color: #856404; margin-bottom: 14px; }
+
+    @media (max-width: 480px) {
+      .nutrition-grid { grid-template-columns: repeat(2, 1fr); }
+      .tab-btn { padding: 7px 12px; font-size: 0.8rem; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="app-header">
+  <div class="header-top">
+    <span class="app-icon">🍽️</span>
+    <span class="app-title">夕食献立アプリ</span>
+  </div>
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('ingredients')">食材登録</button>
+    <button class="tab-btn" onclick="switchTab('create')">献立作成</button>
+    <button class="tab-btn" onclick="switchTab('saved')">保存済み</button>
+  </div>
+</div>
+
+<!-- ===== TAB: 食材登録 ===== -->
+<div id="page-ingredients" class="page active">
+  <div class="card">
+    <div class="card-title">📦 食品群で絞り込み</div>
+    <div class="group-pills" id="group-filter">
+      <button class="pill active" data-group="all" onclick="filterGroup('all',this)">すべて</button>
+      <button class="pill" data-group="肉類" onclick="filterGroup('肉類',this)">🥩 肉類</button>
+      <button class="pill" data-group="魚介類" onclick="filterGroup('魚介類',this)">🐟 魚介類</button>
+      <button class="pill" data-group="卵・大豆製品" onclick="filterGroup('卵・大豆製品',this)">🥚 卵・大豆</button>
+      <button class="pill" data-group="野菜・きのこ" onclick="filterGroup('野菜・きのこ',this)">🥦 野菜・きのこ</button>
+      <button class="pill" data-group="海藻・乾物" onclick="filterGroup('海藻・乾物',this)">🌿 海藻・乾物</button>
+      <button class="pill" data-group="乳製品" onclick="filterGroup('乳製品',this)">🥛 乳製品</button>
+      <button class="pill" data-group="穀物・麺・パン" onclick="filterGroup('穀物・麺・パン',this)">🍚 穀物・麺・パン</button>
+      <button class="pill" data-group="調味料・油脂" onclick="filterGroup('調味料・油脂',this)">🧂 調味料・油脂</button>
+      <button class="pill" data-group="その他" onclick="filterGroup('その他',this)">📌 その他</button>
+    </div>
+    <div id="ing-list" class="ing-list"></div>
+    <div id="ing-empty" class="empty" style="display:none">
+      <div class="empty-icon">📭</div>
+      食材が登録されていません
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">➕ 食材を追加 <span style="font-size:0.75rem;font-weight:400;color:var(--text-sub)">（グループを選んで登録）</span></div>
+    <div class="add-form">
+      <div class="form-row">
+        <div class="form-group" style="flex:2">
+          <label>食材名</label>
+          <input type="text" id="ing-name" placeholder="例: 鶏むね肉">
+        </div>
+        <div class="form-group">
+          <label>量</label>
+          <input type="text" id="ing-amount" placeholder="300g">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>食品群</label>
+        <select id="ing-group">
+          <option value="肉類">🥩 肉類</option>
+          <option value="魚介類">🐟 魚介類</option>
+          <option value="卵・大豆製品">🥚 卵・大豆製品</option>
+          <option value="野菜・きのこ">🥦 野菜・きのこ</option>
+          <option value="海藻・乾物">🌿 海藻・乾物</option>
+          <option value="乳製品">🥛 乳製品</option>
+          <option value="穀物・麺・パン">🍚 穀物・麺・パン</option>
+          <option value="調味料・油脂">🧂 調味料・油脂</option>
+          <option value="その他">📌 その他</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" onclick="addIngredient()">追加する</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== TAB: 献立作成 ===== -->
+<div id="page-create" class="page">
+
+  <div class="rsy2-box" onclick="toggleRSY2()">
+    <input type="checkbox" id="rsy2-check" onchange="onRSY2Change(event)">
+    <label for="rsy2-check" onclick="event.stopPropagation()">
+      <div class="rsy2-title">recolte RSY-2 を使う</div>
+      <div class="rsy2-sub">汁物・スープ・ポタージュ・お粥・リゾット・パスタソースを作れます</div>
+      <div id="rsy2-types" class="rsy2-type-row" style="display:none" onclick="event.stopPropagation()">
+        <button class="rsy2-type-btn active" data-type="soup" onclick="selectRSY2Type(this)">汁物・スープ</button>
+        <button class="rsy2-type-btn" data-type="potage" onclick="selectRSY2Type(this)">ポタージュ</button>
+        <button class="rsy2-type-btn" data-type="porridge" onclick="selectRSY2Type(this)">お粥</button>
+        <button class="rsy2-type-btn" data-type="risotto" onclick="selectRSY2Type(this)">リゾット</button>
+        <button class="rsy2-type-btn" data-type="pasta" onclick="selectRSY2Type(this)">パスタソース</button>
+      </div>
+    </label>
+  </div>
+
+  <div class="cuisine-row">
+    <span class="cuisine-label">🍽️ 料理スタイル</span>
+    <div class="cuisine-btns">
+      <button class="cuisine-btn active" data-cuisine="all" onclick="selectCuisine(this)">すべて</button>
+      <button class="cuisine-btn" data-cuisine="jp" onclick="selectCuisine(this)">🇯🇵 和食</button>
+      <button class="cuisine-btn" data-cuisine="west" onclick="selectCuisine(this)">🍽️ 洋食</button>
+      <button class="cuisine-btn" data-cuisine="asia" onclick="selectCuisine(this)">🥢 中華・アジア</button>
+    </div>
+  </div>
+
+  <div class="generate-area">
+    <button class="btn btn-primary btn-lg" onclick="generateMeal()">🍴 献立を作成する</button>
+  </div>
+
+  <div id="meal-result" style="display:none">
+    <div class="divider"></div>
+    <div id="meal-dishes"></div>
+    <div class="card" style="margin-top:14px">
+      <div class="card-title">📊 栄養バランス</div>
+      <div class="nutrition-grid" id="nut-grid"></div>
+      <div id="nut-bars"></div>
+    </div>
+    <button class="btn btn-primary btn-lg" style="margin-top:4px" onclick="saveMeal()">💾 この献立を保存する</button>
+    <div class="rsy2-mini" onclick="toggleRSY2Mini()">
+      <input type="checkbox" id="rsy2-mini-check" onclick="event.stopPropagation()" onchange="onRSY2MiniChange(event)">
+      <span class="rsy2-mini-label">🔶 recolte RSY-2 を使う</span>
+      <div id="rsy2-mini-types" class="rsy2-type-row" style="display:none" onclick="event.stopPropagation()">
+        <button class="rsy2-type-btn active" data-type="soup" onclick="selectRSY2Type(this)">汁物・スープ</button>
+        <button class="rsy2-type-btn" data-type="potage" onclick="selectRSY2Type(this)">ポタージュ</button>
+        <button class="rsy2-type-btn" data-type="porridge" onclick="selectRSY2Type(this)">お粥</button>
+        <button class="rsy2-type-btn" data-type="risotto" onclick="selectRSY2Type(this)">リゾット</button>
+        <button class="rsy2-type-btn" data-type="pasta" onclick="selectRSY2Type(this)">パスタソース</button>
+      </div>
+    </div>
+    <button class="btn btn-secondary btn-lg" style="margin-top:0" onclick="generateMeal()">🔄 別の献立を作成</button>
+  </div>
+</div>
+
+<!-- ===== TAB: 保存済み ===== -->
+<div id="page-saved" class="page">
+  <div id="saved-list"></div>
+  <div id="saved-empty" class="empty" style="display:none">
+    <div class="empty-icon">📋</div>
+    保存済みの献立はありません
+  </div>
+</div>
+
+<!-- Edit modal -->
+<div class="overlay" id="edit-overlay" onclick="closeModal()">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-title">食材を編集</div>
+    <div class="add-form">
+      <div class="form-row">
+        <div class="form-group" style="flex:2">
+          <label>食材名</label>
+          <input type="text" id="edit-name">
+        </div>
+        <div class="form-group">
+          <label>量</label>
+          <input type="text" id="edit-amount">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>食品群</label>
+        <select id="edit-group">
+          <option value="肉類">🥩 肉類</option>
+          <option value="魚介類">🐟 魚介類</option>
+          <option value="卵・大豆製品">🥚 卵・大豆製品</option>
+          <option value="野菜・きのこ">🥦 野菜・きのこ</option>
+          <option value="海藻・乾物">🌿 海藻・乾物</option>
+          <option value="乳製品">🥛 乳製品</option>
+          <option value="穀物・麺・パン">🍚 穀物・麺・パン</option>
+          <option value="調味料・油脂">🧂 調味料・油脂</option>
+          <option value="その他">📌 その他</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal()">キャンセル</button>
+      <button class="btn btn-primary" onclick="saveEdit()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Dish edit modal -->
+<div class="overlay" id="dish-edit-overlay" onclick="closeDishModal()">
+  <div class="modal" onclick="event.stopPropagation()" style="max-width:440px;max-height:82vh;display:flex;flex-direction:column">
+    <div class="modal-title" id="dish-edit-title">料理を変更</div>
+    <div id="dish-edit-list" style="overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:7px;padding-right:2px"></div>
+    <div class="modal-actions" style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">
+      <button class="btn btn-secondary" onclick="closeDishModal()">キャンセル</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ========== RECIPE DATABASE ==========
+// cuisine: 'jp'=和食, 'west'=洋食, 'asia'=中華・アジア
+const RECIPES = {
+  staple: [
+    { name: '白飯', kcal: 168, protein: 2.5, carb: 37, salt: 0, desc: '100g', cuisine: 'jp', ings: ['米 100g'] },
+    { name: '雑穀米', kcal: 165, protein: 3, carb: 35, salt: 0, desc: '100g 雑穀ブレンド', cuisine: 'jp', ings: ['米・雑穀ミックス 100g'] },
+  ],
+  main: [
+    { name: '鶏むね肉のソテー', keys: ['鶏'], kcal: 190, protein: 32, carb: 3, salt: 1.5, desc: '塩こしょう・オリーブ油で香ばしく焼く', cuisine: 'west', ings: ['鶏むね肉 150g', 'オリーブ油 大さじ1', '塩・こしょう 少々', 'にんにく 1片'] },
+    { name: '鶏もも肉の照り焼き', keys: ['鶏'], kcal: 255, protein: 25, carb: 12, salt: 2.0, desc: '醤油・みりん・砂糖のたれで照り焼きに', cuisine: 'jp', ings: ['鶏もも肉 150g', '醤油 大さじ1.5', 'みりん 大さじ1.5', '砂糖 小さじ1'] },
+    { name: '鶏むね肉の唐揚げ', keys: ['鶏'], kcal: 280, protein: 28, carb: 18, salt: 2.0, desc: '醤油・しょうがで下味をつけてカリッと揚げる', cuisine: 'jp', ings: ['鶏むね肉 150g', '醤油 大さじ1', '生姜 1片', '片栗粉 大さじ2', '揚げ油 適量'] },
+    { name: '鶏ハム', keys: ['鶏'], kcal: 170, protein: 33, carb: 1, salt: 1.8, desc: '塩・砂糖で下味後、低温でしっとり仕上げる', cuisine: 'west', ings: ['鶏むね肉 150g', '塩 小さじ1', '砂糖 小さじ1', 'ハーブ（お好みで）'] },
+    { name: '豚肉の生姜焼き', keys: ['豚'], kcal: 280, protein: 26, carb: 12, salt: 2.2, desc: '醤油・みりん・生姜のたれで炒め焼き', cuisine: 'jp', ings: ['豚ロース薄切り 150g', '醤油 大さじ1.5', 'みりん 大さじ1.5', '生姜 1片'] },
+    { name: '豚肉のサラダ仕立て', keys: ['豚'], kcal: 210, protein: 24, carb: 5, salt: 1.5, desc: 'しゃぶしゃぶにして野菜と合わせる', cuisine: 'jp', ings: ['豚しゃぶ用薄切り 130g', 'レタス 適量', 'ポン酢 大さじ2', 'ごま油 小さじ1'] },
+    { name: '豚バラと大根の煮物', keys: ['豚'], kcal: 260, protein: 20, carb: 14, salt: 2.5, desc: '醤油・みりん・だしでじっくり煮込む', cuisine: 'jp', ings: ['豚バラ肉 100g', '大根 200g', '醤油 大さじ2', 'みりん 大さじ2', 'だし 200ml'] },
+    { name: '牛肉と野菜の炒め物', keys: ['牛'], kcal: 260, protein: 22, carb: 10, salt: 2.0, desc: '醤油・オイスターソースで炒め合わせる', cuisine: 'asia', ings: ['牛こま肉 120g', 'ピーマン 2個', '玉ねぎ 1/4個', '醤油 大さじ1', 'オイスターソース 大さじ1'] },
+    { name: 'ハンバーグ', keys: ['ひき肉', '合い挽き', '牛豚'], kcal: 310, protein: 22, carb: 15, salt: 2.5, desc: '玉ねぎ・パン粉入り、デミグラスソースで', cuisine: 'west', ings: ['合い挽きひき肉 150g', '玉ねぎ 1/4個', 'パン粉 大さじ2', '卵 1/2個', 'デミグラスソース 適量'] },
+    { name: '鮭のムニエル', keys: ['鮭', 'サーモン'], kcal: 200, protein: 28, carb: 5, salt: 1.5, desc: 'バターとレモンで仕上げるムニエル', cuisine: 'west', ings: ['鮭切り身 1切れ(100g)', 'バター 10g', 'レモン 1/4個', '塩・こしょう 少々', '薄力粉 少々'] },
+    { name: '鮭の塩焼き', keys: ['鮭', 'サーモン'], kcal: 185, protein: 27, carb: 0, salt: 1.5, desc: '塩をふって香ばしく焼く', cuisine: 'jp', ings: ['鮭切り身 1切れ(100g)', '塩 少々', '大根おろし 適量'] },
+    { name: '鯖の味噌煮', keys: ['鯖', 'さば'], kcal: 225, protein: 24, carb: 8, salt: 2.5, desc: '生姜入り味噌だれでほっこり煮る', cuisine: 'jp', ings: ['鯖 1切れ(100g)', '味噌 大さじ1.5', 'みりん 大さじ1.5', '砂糖 小さじ1', '生姜 1片'] },
+    { name: 'さんまの塩焼き', keys: ['さんま', '秋刀魚'], kcal: 220, protein: 25, carb: 0, salt: 1.5, desc: '塩をふってグリルで香ばしく', cuisine: 'jp', ings: ['さんま 1尾', '塩 少々', '大根おろし・すだち 適量'] },
+    { name: '鰤の照り焼き', keys: ['鰤', 'ぶり', 'ブリ'], kcal: 245, protein: 26, carb: 10, salt: 2.0, desc: '醤油・みりんのたれで照り焼きに', cuisine: 'jp', ings: ['鰤切り身 1切れ(100g)', '醤油 大さじ1.5', 'みりん 大さじ1.5', '砂糖 小さじ1'] },
+    { name: 'エビのガーリック炒め', keys: ['エビ', 'えび', '海老'], kcal: 160, protein: 22, carb: 8, salt: 2.0, desc: 'にんにく・オリーブ油で香りよく炒める', cuisine: 'west', ings: ['えび 120g', 'にんにく 2片', 'オリーブ油 大さじ1', '塩・こしょう 少々', '白ワイン 大さじ1'] },
+    { name: '豆腐ステーキ', keys: ['豆腐'], kcal: 155, protein: 14, carb: 8, salt: 1.5, desc: '厚揚げ風にカリッと焼いてあんかけに', cuisine: 'jp', ings: ['木綿豆腐 1/2丁(150g)', 'ごま油 大さじ1', '醤油 大さじ1', 'だし 100ml', '片栗粉 小さじ1'] },
+    { name: '厚揚げの煮物', keys: ['厚揚げ'], kcal: 185, protein: 15, carb: 10, salt: 2.0, desc: '醤油・みりん・だしで味を含ませる', cuisine: 'jp', ings: ['厚揚げ 1枚(150g)', 'だし 150ml', '醤油 大さじ1.5', 'みりん 大さじ1.5'] },
+    { name: '卵と豆腐のふわふわ炒め', keys: ['卵', 'たまご'], kcal: 180, protein: 14, carb: 6, salt: 1.8, desc: 'かつおだしと醤油でふんわり仕上げ', cuisine: 'jp', ings: ['卵 2個', '絹豆腐 1/2丁', 'だし 大さじ2', '醤油 小さじ1', '砂糖 小さじ1'] },
+    { name: '豚ひき肉と豆腐のそぼろ煮', keys: ['ひき肉', '豚'], kcal: 230, protein: 22, carb: 8, salt: 2.0, desc: '豆腐と合わせてとろみをつける', cuisine: 'jp', ings: ['豚ひき肉 100g', '木綿豆腐 1/2丁', '醤油 大さじ1.5', 'みりん 大さじ1', '生姜 1片'] },
+    { name: 'タラのホイル焼き', keys: ['タラ', '鱈', 'たら'], kcal: 150, protein: 26, carb: 4, salt: 1.5, desc: '野菜と一緒にバター醤油でホイル焼き', cuisine: 'west', ings: ['鱈切り身 1切れ(100g)', 'バター 10g', 'しめじ 40g', '玉ねぎ 1/4個', '醤油 小さじ2'] },
+    { name: '豚肉と玉ねぎのケチャップ炒め', keys: ['豚'], kcal: 250, protein: 22, carb: 14, salt: 1.8, desc: 'ケチャップ・ソースで甘辛に仕上げる', cuisine: 'west', ings: ['豚こま肉 120g', '玉ねぎ 1/2個', 'ケチャップ 大さじ2', 'ウスターソース 大さじ1'] },
+    { name: '鶏肉とキャベツの蒸し煮', keys: ['鶏'], kcal: 200, protein: 26, carb: 6, salt: 1.5, desc: '蒸し焼きにしてうまみを閉じ込める', cuisine: 'west', ings: ['鶏もも肉 130g', 'キャベツ 100g', 'にんにく 1片', 'オリーブ油 大さじ1', '塩・こしょう 少々'] },
+    { name: 'エビと卵の炒め物', keys: ['エビ', 'えび', '海老'], kcal: 185, protein: 24, carb: 5, salt: 1.5, desc: '半熟卵とふんわり合わせる中華炒め', cuisine: 'asia', ings: ['えび 100g', '卵 2個', 'ねぎ 少々', '塩・こしょう 少々', 'ごま油 小さじ1'] },
+    { name: '豚肉とほうれん草の炒め物', keys: ['豚'], kcal: 230, protein: 22, carb: 5, salt: 1.8, desc: 'にんにく・ごま油で香りよく炒める', cuisine: 'asia', ings: ['豚こま肉 100g', 'ほうれん草 1束', 'にんにく 1片', 'ごま油 大さじ1', '醤油 大さじ1'] },
+  ],
+  side: [
+    { name: 'ほうれん草のおひたし', keys: ['ほうれん草'], kcal: 28, protein: 2, carb: 3, salt: 0.8, desc: 'だし醤油であえる', cuisine: 'jp', ings: ['ほうれん草 1/2束', 'だし醤油 大さじ1', 'かつおぶし 適量'] },
+    { name: '小松菜の炒め物', keys: ['小松菜'], kcal: 38, protein: 2, carb: 3, salt: 0.8, desc: 'にんにく・ごま油で炒める', cuisine: 'asia', ings: ['小松菜 1/2束', 'にんにく 1片', 'ごま油 小さじ1', '塩 少々'] },
+    { name: 'キャベツの酢の物', keys: ['キャベツ'], kcal: 28, protein: 1, carb: 5, salt: 0.5, desc: '酢・砂糖・塩でさっぱりと', cuisine: 'jp', ings: ['キャベツ 100g', '酢 大さじ1', '砂糖 小さじ1', '塩 少々'] },
+    { name: '白菜の浅漬け', keys: ['白菜'], kcal: 18, protein: 1, carb: 3, salt: 1.0, desc: '塩・昆布でさっぱり漬ける', cuisine: 'jp', ings: ['白菜 150g', '塩 小さじ1', '昆布（お好みで）'] },
+    { name: 'ブロッコリーの塩茹で', keys: ['ブロッコリー'], kcal: 33, protein: 4, carb: 5, salt: 0.5, desc: '塩を加えた湯でさっと茹でる', cuisine: 'west', ings: ['ブロッコリー 100g', '塩 少々', 'オリーブ油（お好みで）'] },
+    { name: 'きんぴらごぼう', keys: ['ごぼう'], kcal: 82, protein: 2, carb: 12, salt: 1.0, desc: '醤油・みりん・ごま油でシャキシャキに', cuisine: 'jp', ings: ['ごぼう 1/2本', '人参 1/4本', '醤油 大さじ1', 'みりん 大さじ1', 'ごま油 小さじ1'] },
+    { name: 'かぼちゃの煮物', keys: ['かぼちゃ', 'カボチャ'], kcal: 98, protein: 2, carb: 20, salt: 0.8, desc: 'だし・醤油・みりんで柔らかく煮る', cuisine: 'jp', ings: ['かぼちゃ 150g', 'だし 150ml', '醤油 大さじ1', 'みりん 大さじ1', '砂糖 小さじ1'] },
+    { name: '大根のおろし和え', keys: ['大根', 'だいこん'], kcal: 28, protein: 1, carb: 5, salt: 0.5, desc: '大根おろしとポン酢でさっぱり', cuisine: 'jp', ings: ['大根 100g', 'ポン酢 大さじ1', 'かつおぶし 適量'] },
+    { name: 'もやしのナムル', keys: ['もやし'], kcal: 32, protein: 2, carb: 4, salt: 0.6, desc: 'ごま油・塩・にんにくで韓国風に', cuisine: 'asia', ings: ['もやし 100g', 'ごま油 小さじ1', '塩 少々', 'にんにく（すりおろし）少々', '白ごま 少々'] },
+    { name: 'トマトとレタスのサラダ', keys: ['トマト', 'レタス'], kcal: 24, protein: 1, carb: 5, salt: 0.3, desc: 'ドレッシングをかけてさっぱりと', cuisine: 'west', ings: ['トマト 1/2個', 'レタス 2枚', 'ドレッシング 大さじ1'] },
+    { name: 'なすの煮浸し', keys: ['なす', 'ナス'], kcal: 48, protein: 1, carb: 7, salt: 1.0, desc: 'だし・醤油で揚げ浸しに', cuisine: 'jp', ings: ['なす 1本', 'だし 100ml', '醤油 大さじ1', 'みりん 大さじ1', '揚げ油 適量'] },
+    { name: 'じゃがいもの煮物', keys: ['じゃがいも', 'ジャガイモ', 'ポテト'], kcal: 118, protein: 2, carb: 25, salt: 0.8, desc: 'だし・醤油でほっくり煮る', cuisine: 'jp', ings: ['じゃがいも 1個(100g)', 'だし 150ml', '醤油 大さじ1', 'みりん 大さじ1'] },
+    { name: '人参のきんぴら', keys: ['人参', 'にんじん'], kcal: 58, protein: 1, carb: 10, salt: 0.7, desc: '醤油・みりん・ごま油で炒める', cuisine: 'jp', ings: ['人参 1/2本', '醤油 大さじ1', 'みりん 大さじ1', 'ごま油 小さじ1'] },
+    { name: 'えのきのバター炒め', keys: ['えのき', 'えのきたけ'], kcal: 32, protein: 1, carb: 4, salt: 0.6, desc: 'バター・醤油でシンプルに炒める', cuisine: 'west', ings: ['えのきたけ 100g', 'バター 5g', '醤油 小さじ1', '塩・こしょう 少々'] },
+    { name: 'しいたけのソテー', keys: ['しいたけ', 'シイタケ'], kcal: 28, protein: 1, carb: 3, salt: 0.5, desc: 'オリーブ油・塩こしょうで炒める', cuisine: 'west', ings: ['しいたけ 3枚', 'オリーブ油 小さじ1', '塩・こしょう 少々', 'にんにく（お好みで）'] },
+    { name: 'きゅうりの酢の物', keys: ['きゅうり', 'キュウリ'], kcal: 15, protein: 1, carb: 3, salt: 0.5, desc: '酢・砂糖・塩でさっぱりと', cuisine: 'jp', ings: ['きゅうり 1本', '酢 大さじ1', '砂糖 小さじ1', '塩 少々'] },
+    { name: 'ひじきの煮物', keys: ['ひじき', 'ヒジキ'], kcal: 50, protein: 2, carb: 8, salt: 1.0, desc: '油揚げ・にんじんと醤油・みりんで煮る', cuisine: 'jp', ings: ['ひじき(乾) 10g', '油揚げ 1/2枚', '人参 少々', '醤油 大さじ1', 'みりん 大さじ1'] },
+    { name: 'わかめの酢の物', keys: ['わかめ', 'ワカメ'], kcal: 15, protein: 1, carb: 2, salt: 0.8, desc: '三杯酢でさっぱりと', cuisine: 'jp', ings: ['わかめ(乾) 5g', '酢 大さじ1', '砂糖 小さじ1', '醤油 小さじ1'] },
+    { name: 'アスパラのソテー', keys: ['アスパラ', 'アスパラガス'], kcal: 30, protein: 2, carb: 3, salt: 0.4, desc: 'バター・塩こしょうでシンプルに', cuisine: 'west', ings: ['アスパラガス 3本', 'バター 5g', '塩・こしょう 少々'] },
+    { name: '卵焼き', keys: ['卵', 'たまご'], kcal: 100, protein: 7, carb: 4, salt: 1.0, desc: 'だし巻き卵または甘い卵焼き', cuisine: 'jp', ings: ['卵 2個', 'だし 大さじ2', '醤油 小さじ1/2', '砂糖 小さじ1/2'] },
+    { name: '豆腐サラダ', keys: ['豆腐'], kcal: 75, protein: 6, carb: 4, salt: 0.8, desc: '絹豆腐に薬味とドレッシングをかける', cuisine: 'jp', ings: ['絹豆腐 1/3丁(100g)', 'ねぎ 少々', 'かつおぶし 適量', 'ごま油醤油ドレッシング 大さじ1'] },
+    { name: '納豆', keys: ['納豆'], kcal: 90, protein: 8, carb: 6, salt: 0.5, desc: 'タレ・からしを添えてそのまま', cuisine: 'jp', ings: ['納豆 1パック(45g)', '付属のタレ', 'からし 少々'] },
+    { name: 'ピーマンの炒め物', keys: ['ピーマン'], kcal: 28, protein: 1, carb: 4, salt: 0.6, desc: 'ごま油・醤油で炒める', cuisine: 'jp', ings: ['ピーマン 3個', 'ごま油 小さじ1', '醤油 小さじ1', '塩 少々'] },
+    { name: 'チンゲン菜の炒め物', keys: ['チンゲン菜', 'チンゲンサイ'], kcal: 30, protein: 1, carb: 3, salt: 0.7, desc: 'にんにく・ごま油で炒める', cuisine: 'asia', ings: ['チンゲン菜 1株', 'にんにく 1片', 'ごま油 小さじ1', '塩 少々', 'オイスターソース 小さじ1'] },
+    { name: 'ブロッコリーとゆで卵のサラダ', keys: ['ブロッコリー', '卵', 'たまご'], kcal: 85, protein: 8, carb: 5, salt: 0.5, desc: 'マヨネーズドレッシングで和える', cuisine: 'west', ings: ['ブロッコリー 80g', 'ゆで卵 1個', 'マヨネーズ 大さじ1', '塩・こしょう 少々'] },
+    { name: '冷ややっこ', keys: ['豆腐'], kcal: 55, protein: 5, carb: 2, salt: 0.5, desc: '薬味・醤油でシンプルに', cuisine: 'jp', ings: ['絹豆腐 1/3丁(100g)', '醤油 小さじ1', 'ねぎ・生姜 少々', 'かつおぶし 適量'] },
+    { name: 'ほうれん草のソテー', keys: ['ほうれん草'], kcal: 35, protein: 2, carb: 3, salt: 0.5, desc: 'バター・にんにくで香りよく炒める', cuisine: 'west', ings: ['ほうれん草 1/2束', 'バター 5g', 'にんにく 1片', '塩・こしょう 少々'] },
+  ],
+  soup: [
+    { name: 'みそ汁（豆腐・わかめ）', keys: ['みそ', '味噌'], kcal: 35, protein: 2, carb: 3, salt: 1.5, desc: '定番のみそ汁', cuisine: 'jp', rsy2: true, rsy2type: 'soup', ings: ['だし 200ml', '味噌 大さじ1', '豆腐 1/4丁', 'わかめ 少々'] },
+    { name: '豚汁', keys: ['豚'], kcal: 82, protein: 5, carb: 8, salt: 1.5, desc: '根菜たっぷりの具だくさん汁', cuisine: 'jp', rsy2: true, rsy2type: 'soup', ings: ['豚バラ肉 50g', '大根 50g', '人参 30g', '味噌 大さじ1.5', 'だし 200ml'] },
+    { name: '野菜スープ', keys: ['キャベツ', '人参', 'にんじん', '玉ねぎ', 'たまねぎ'], kcal: 48, protein: 2, carb: 8, salt: 1.0, desc: 'コンソメで煮込む洋風スープ', cuisine: 'west', rsy2: true, rsy2type: 'soup', ings: ['キャベツ 50g', '人参 30g', '玉ねぎ 1/4個', 'コンソメ 1個', '水 300ml'] },
+    { name: '鶏だしスープ', keys: ['鶏'], kcal: 32, protein: 3, carb: 2, salt: 1.2, desc: '鶏ガラだしにねぎを浮かべる', cuisine: 'jp', rsy2: true, rsy2type: 'soup', ings: ['鶏手羽先（またはガラ）', 'ねぎ 少々', '塩 少々', '水 300ml'] },
+    { name: '卵スープ', keys: ['卵', 'たまご'], kcal: 60, protein: 5, carb: 5, salt: 1.0, desc: 'かき玉にして中華風スープに', cuisine: 'asia', rsy2: true, rsy2type: 'soup', ings: ['卵 1個', '鶏がらスープ 200ml', '塩 少々', 'ごま油 少々', '片栗粉 小さじ1'] },
+    { name: 'えのきと豆腐のスープ', keys: ['えのき', '豆腐'], kcal: 40, protein: 3, carb: 4, salt: 1.0, desc: '薄口醤油で上品なスープ', cuisine: 'jp', rsy2: true, rsy2type: 'soup', ings: ['えのきたけ 50g', '豆腐 1/4丁', 'だし 200ml', '薄口醤油 小さじ2'] },
+    { name: '白菜と豆腐のスープ', keys: ['白菜'], kcal: 38, protein: 3, carb: 4, salt: 1.0, desc: '生姜入りの体温まるスープ', cuisine: 'jp', rsy2: true, rsy2type: 'soup', ings: ['白菜 80g', '豆腐 1/4丁', 'だし 200ml', '醤油 小さじ2', '生姜 少々'] },
+    { name: 'かぼちゃのポタージュ', keys: ['かぼちゃ', 'カボチャ'], kcal: 108, protein: 3, carb: 20, salt: 0.8, desc: '牛乳でなめらかにしたポタージュ', cuisine: 'west', rsy2: true, rsy2type: 'potage', ings: ['かぼちゃ 150g', '牛乳 100ml', '玉ねぎ 1/4個', 'バター 5g', '塩 少々'] },
+    { name: 'コーンポタージュ', keys: ['コーン', 'とうもろこし'], kcal: 118, protein: 3, carb: 22, salt: 0.8, desc: '甘みたっぷりのコーンポタージュ', cuisine: 'west', rsy2: true, rsy2type: 'potage', ings: ['コーン缶 100g', '牛乳 150ml', '玉ねぎ 1/4個', 'バター 5g', '塩 少々'] },
+    { name: 'じゃがいものポタージュ', keys: ['じゃがいも', 'ジャガイモ'], kcal: 100, protein: 3, carb: 18, salt: 0.8, desc: '玉ねぎと合わせてなめらかに', cuisine: 'west', rsy2: true, rsy2type: 'potage', ings: ['じゃがいも 1個', '玉ねぎ 1/4個', '牛乳 100ml', 'バター 5g', '塩 少々'] },
+    { name: 'ブロッコリーのポタージュ', keys: ['ブロッコリー'], kcal: 78, protein: 4, carb: 10, salt: 0.8, desc: '豆乳でヘルシーなグリーンポタージュ', cuisine: 'west', rsy2: true, rsy2type: 'potage', ings: ['ブロッコリー 100g', '豆乳 150ml', '玉ねぎ 1/4個', '塩 少々'] },
+    { name: '鶏がゆ', keys: ['鶏'], kcal: 200, protein: 12, carb: 38, salt: 1.2, desc: '鶏むね肉と生姜入りの中華粥', cuisine: 'asia', rsy2: true, rsy2type: 'porridge', ings: ['米 50g', '鶏むね肉 80g', '生姜 1片', '鶏がらスープ 400ml', '塩 少々'] },
+    { name: '野菜がゆ', keys: ['人参', 'にんじん', '大根'], kcal: 185, protein: 5, carb: 40, salt: 1.0, desc: '根菜たっぷりのやさしいお粥', cuisine: 'jp', rsy2: true, rsy2type: 'porridge', ings: ['米 50g', '人参 30g', '大根 50g', 'だし 400ml', '塩 少々'] },
+    { name: 'きのこリゾット', keys: ['しいたけ', 'しめじ', 'えのき', 'まいたけ'], kcal: 280, protein: 8, carb: 52, salt: 1.5, desc: 'パルメザンチーズ入り本格リゾット', cuisine: 'west', rsy2: true, rsy2type: 'risotto', ings: ['米 60g', 'きのこ類 100g', 'パルメザンチーズ 大さじ2', '玉ねぎ 1/4個', 'コンソメ 1個'] },
+    { name: 'トマトリゾット', keys: ['トマト'], kcal: 270, protein: 7, carb: 50, salt: 1.5, desc: 'トマトの旨みが凝縮されたリゾット', cuisine: 'west', rsy2: true, rsy2type: 'risotto', ings: ['米 60g', 'トマト缶 100g', '玉ねぎ 1/4個', 'コンソメ 1個', 'オリーブ油 大さじ1'] },
+    { name: 'ミートソース', keys: ['ひき肉', '合い挽き', '豚', '牛'], kcal: 200, protein: 15, carb: 18, salt: 1.8, desc: '玉ねぎ・トマト缶で煮込む本格ミートソース', cuisine: 'west', rsy2: true, rsy2type: 'pasta', ings: ['合い挽きひき肉 100g', 'トマト缶 150g', '玉ねぎ 1/4個', 'にんにく 1片', 'オリーブ油 大さじ1'] },
+    { name: '魚介のトマトソース', keys: ['エビ', 'えび', 'イカ', 'ホタテ'], kcal: 180, protein: 18, carb: 15, salt: 1.8, desc: '魚介の旨みたっぷりのトマトソース', cuisine: 'west', rsy2: true, rsy2type: 'pasta', ings: ['魚介類 150g', 'トマト缶 150g', 'にんにく 1片', 'オリーブ油 大さじ1', '白ワイン 大さじ2'] },
+  ]
+};
+
+// RSY-2 用パスタ主食
+const PASTA_STAPLE = { name: 'パスタ', kcal: 290, protein: 10, carb: 58, salt: 0.5, desc: '100g (乾燥)' };
+
+// ========== STORAGE ==========
+const KEY_ING = 'meals_ingredients_v2';
+const KEY_SAVED = 'meals_saved_v2';
+
+function getIngredients() { return JSON.parse(localStorage.getItem(KEY_ING) || '[]'); }
+function setIngredients(data) { localStorage.setItem(KEY_ING, JSON.stringify(data)); }
+function getSaved() { return JSON.parse(localStorage.getItem(KEY_SAVED) || '[]'); }
+function setSaved(data) { localStorage.setItem(KEY_SAVED, JSON.stringify(data)); }
+
+// ========== TABS ==========
+function switchTab(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  event.currentTarget.classList.add('active');
+  if (name === 'ingredients') renderIngredients();
+  if (name === 'saved') renderSaved();
+}
+
+// ========== INGREDIENTS ==========
+let currentGroup = 'all';
+let editingId = null;
+
+function filterGroup(group, btn) {
+  currentGroup = group;
+  document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  // 下部フォームのグループ選択を連動
+  if (group !== 'all') {
+    const sel = document.getElementById('ing-group');
+    if (sel) sel.value = group;
+  }
+  renderIngredients();
+}
+
+const GROUP_ORDER = ['肉類','魚介類','卵・大豆製品','野菜・きのこ','海藻・乾物','乳製品','穀物・麺・パン','調味料・油脂','その他'];
+const GROUP_ICON = { '肉類':'🥩','魚介類':'🐟','卵・大豆製品':'🥚','野菜・きのこ':'🥦','海藻・乾物':'🌿','乳製品':'🥛','穀物・麺・パン':'🍚','調味料・油脂':'🧂','その他':'📌' };
+
+function renderIngredients() {
+  const list = document.getElementById('ing-list');
+  const empty = document.getElementById('ing-empty');
+  const all = getIngredients();
+
+  const byGroup = {};
+  for (const ing of all) {
+    if (!byGroup[ing.group]) byGroup[ing.group] = [];
+    byGroup[ing.group].push(ing);
+  }
+
+  if (currentGroup !== 'all') {
+    // 特定グループ：空でもセクションを表示（インライン追加できる）
+    empty.style.display = 'none';
+    list.innerHTML = groupSectionHTML(currentGroup, byGroup[currentGroup] || []);
+    return;
+  }
+
+  // すべて：登録済みのグループのみ表示
+  const displayGroups = GROUP_ORDER.filter(g => byGroup[g]);
+  for (const g of Object.keys(byGroup)) {
+    if (!displayGroups.includes(g)) displayGroups.push(g);
+  }
+
+  if (displayGroups.length === 0) {
+    list.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+
+  empty.style.display = 'none';
+  list.innerHTML = displayGroups.map(g => groupSectionHTML(g, byGroup[g])).join('');
+}
+
+function groupSectionHTML(g, items) {
+  const idx = GROUP_ORDER.indexOf(g);
+  const safeId = idx >= 0 ? idx : 'x' + g.length; // fallback for unknown groups
+  return `<div class="group-section">
+    <div class="group-section-header">
+      <div class="group-section-header-left">
+        <span>${GROUP_ICON[g] || '📦'} ${esc(g)}</span>
+        ${items.length > 0 ? `<span class="group-count">${items.length}品</span>` : ''}
+      </div>
+      <button class="btn-add-here" onclick="toggleQuickAdd(${safeId})">＋ 追加</button>
+    </div>
+    <div class="quick-add-row" id="qa-${safeId}" style="display:none">
+      <input type="text" id="qa-name-${safeId}" placeholder="食材名"
+        onkeydown="if(event.key==='Enter')quickAdd(${safeId})">
+      <input type="text" id="qa-amt-${safeId}" placeholder="量" style="max-width:80px"
+        onkeydown="if(event.key==='Enter')quickAdd(${safeId})">
+      <button class="btn-qa-add" onclick="quickAdd(${safeId})">追加</button>
+      <button class="btn-qa-cancel" onclick="toggleQuickAdd(${safeId})">✕</button>
+    </div>
+    <div class="ing-chips">
+      ${items.length > 0 ? items.map(ing => ingChipHTML(ing)).join('') : '<span class="ing-chips-empty">未登録</span>'}
+    </div>
+  </div>`;
+}
+
+function ingChipHTML(ing) {
+  return `<div class="ing-chip">
+    <span class="ing-chip-name">${esc(ing.name)}</span>
+    <span class="ing-chip-amount">${esc(ing.amount)}</span>
+    <button class="ing-chip-edit" onclick="openEdit(${ing.id})" title="編集">✏</button>
+    <button class="ing-chip-del" onclick="deleteIng(${ing.id})" title="削除">✕</button>
+  </div>`;
+}
+
+function toggleQuickAdd(idx) {
+  const row = document.getElementById('qa-' + idx);
+  if (!row) return;
+  const isOpen = row.style.display !== 'none';
+  row.style.display = isOpen ? 'none' : 'flex';
+  if (!isOpen) {
+    const nameInput = document.getElementById('qa-name-' + idx);
+    if (nameInput) nameInput.focus();
+  }
+}
+
+function quickAdd(idx) {
+  const g = GROUP_ORDER[idx] || GROUP_ORDER[0];
+  const nameEl = document.getElementById('qa-name-' + idx);
+  const amtEl = document.getElementById('qa-amt-' + idx);
+  if (!nameEl) return;
+  const name = nameEl.value.trim();
+  if (!name) { nameEl.focus(); showToast('食材名を入力してください'); return; }
+  const amount = amtEl.value.trim() || '適量';
+  const list = getIngredients();
+  list.push({ id: Date.now(), name, amount, group: g });
+  setIngredients(list);
+  nameEl.value = '';
+  amtEl.value = '';
+  nameEl.focus();
+  renderIngredients();
+  showToast(`「${name}」を追加しました`);
+}
+
+function addIngredient() {
+  const name = document.getElementById('ing-name').value.trim();
+  const amount = document.getElementById('ing-amount').value.trim();
+  const group = document.getElementById('ing-group').value;
+  if (!name) { showToast('食材名を入力してください'); return; }
+  const list = getIngredients();
+  list.push({ id: Date.now(), name, amount: amount || '適量', group });
+  setIngredients(list);
+  document.getElementById('ing-name').value = '';
+  document.getElementById('ing-amount').value = '';
+  renderIngredients();
+  showToast('追加しました');
+}
+
+function deleteIng(id) {
+  const list = getIngredients().filter(i => i.id !== id);
+  setIngredients(list);
+  renderIngredients();
+  showToast('削除しました');
+}
+
+function openEdit(id) {
+  const ing = getIngredients().find(i => i.id === id);
+  if (!ing) return;
+  editingId = id;
+  document.getElementById('edit-name').value = ing.name;
+  document.getElementById('edit-amount').value = ing.amount;
+  document.getElementById('edit-group').value = ing.group;
+  document.getElementById('edit-overlay').classList.add('open');
+}
+
+function saveEdit() {
+  const list = getIngredients();
+  const idx = list.findIndex(i => i.id === editingId);
+  if (idx < 0) return;
+  list[idx].name = document.getElementById('edit-name').value.trim() || list[idx].name;
+  list[idx].amount = document.getElementById('edit-amount').value.trim() || list[idx].amount;
+  list[idx].group = document.getElementById('edit-group').value;
+  setIngredients(list);
+  closeModal();
+  renderIngredients();
+  showToast('更新しました');
+}
+
+function closeModal() { document.getElementById('edit-overlay').classList.remove('open'); }
+function closeDishModal() { document.getElementById('dish-edit-overlay').classList.remove('open'); }
+
+// ========== DISH EDIT ==========
+// ========== CUISINE FILTER ==========
+let currentCuisine = 'all';
+
+function selectCuisine(btn) {
+  document.querySelectorAll('.cuisine-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentCuisine = btn.dataset.cuisine;
+}
+
+function filterByCuisine(list) {
+  if (currentCuisine === 'all') return list;
+  return list.filter(r => r.cuisine === currentCuisine);
+}
+
+// ========== DISH EDIT / DELETE ==========
+let editingSlot = null;
+let editCandidates = [];
+
+function openDishEdit(slotKey) {
+  editingSlot = slotKey;
+  const titleMap = { staple:'主食を変更', main:'主菜を変更・削除', soup:'汁物・スープを変更・削除' };
+  const title = slotKey.startsWith('side') ? '副菜を変更・削除' : (titleMap[slotKey] || '料理を変更・削除');
+  document.getElementById('dish-edit-title').textContent = title;
+
+  // 削除ボタン（主食以外で表示）
+  const canDelete = slotKey !== 'staple';
+  const deleteBtn = canDelete
+    ? `<button class="btn-dish-del-modal" onclick="deleteDish('${slotKey}')">🗑️ このメニューを削除</button>`
+    : '';
+
+  let pool = [];
+  if (slotKey === 'staple') {
+    pool = RECIPES.staple.map(r => ({ recipe: r, available: true }));
+  } else if (slotKey === 'main') {
+    const avail = RECIPES.main.filter(r => hasIngredient(r.keys));
+    const other = RECIPES.main.filter(r => !hasIngredient(r.keys));
+    pool = [...avail.map(r => ({ recipe: r, available: true })), ...other.map(r => ({ recipe: r, available: false }))];
+  } else if (slotKey.startsWith('side')) {
+    const avail = RECIPES.side.filter(r => hasIngredient(r.keys));
+    const other = RECIPES.side.filter(r => !hasIngredient(r.keys));
+    pool = [...avail.map(r => ({ recipe: r, available: true })), ...other.map(r => ({ recipe: r, available: false }))];
+  } else if (slotKey === 'soup') {
+    const base = currentMeal.useRSY2 ? RECIPES.soup.filter(r => r.rsy2type === currentMeal.rsy2Type) : RECIPES.soup;
+    const avail = base.filter(r => hasIngredient(r.keys));
+    const other = base.filter(r => !hasIngredient(r.keys));
+    pool = [...avail.map(r => ({ recipe: r, available: true })), ...other.map(r => ({ recipe: r, available: false }))];
+  }
+
+  editCandidates = pool;
+  document.getElementById('dish-edit-list').innerHTML =
+    (deleteBtn ? `<div style="margin-bottom:4px">${deleteBtn}</div><div style="font-size:0.78rem;color:var(--text-sub);margin-bottom:6px;padding-left:2px">または別のメニューに変更：</div>` : '') +
+    pool.map((c, idx) => `
+      <div class="recipe-option ${c.available ? 'has-ing' : ''}" onclick="selectDish(${idx})">
+        <div style="flex:1">
+          <div class="recipe-option-name">${esc(c.recipe.name)}${c.available ? '<span class="recipe-ing-badge">食材あり</span>' : ''}</div>
+          <div class="recipe-option-desc">${esc(c.recipe.desc)}</div>
+          <div class="recipe-option-nut">${c.recipe.kcal}kcal &nbsp;P ${c.recipe.protein}g &nbsp;糖 ${c.recipe.carb}g &nbsp;塩 ${c.recipe.salt}g</div>
+        </div>
+      </div>
+    `).join('');
+
+  document.getElementById('dish-edit-overlay').classList.add('open');
+}
+
+function deleteDish(slotKey) {
+  if (slotKey === 'main') {
+    currentMeal.main = null;
+  } else if (slotKey.startsWith('side-')) {
+    const idx = parseInt(slotKey.split('-')[1]);
+    currentMeal.sides.splice(idx, 1);
+  } else if (slotKey === 'soup') {
+    currentMeal.soup = null;
+  }
+  recalcNutrition();
+  renderMeal(currentMeal);
+  closeDishModal();
+  showToast('削除しました');
+}
+
+function selectDish(idx) {
+  const recipe = editCandidates[idx].recipe;
+  if (editingSlot === 'staple') {
+    currentMeal.staple = recipe;
+  } else if (editingSlot === 'main') {
+    currentMeal.main = recipe;
+  } else if (editingSlot.startsWith('side-')) {
+    const sideIdx = parseInt(editingSlot.split('-')[1]);
+    currentMeal.sides[sideIdx] = recipe;
+  } else if (editingSlot === 'soup') {
+    currentMeal.soup = recipe;
+  }
+  recalcNutrition();
+  renderMeal(currentMeal);
+  closeDishModal();
+  showToast(`「${recipe.name}」に変更しました`);
+}
+
+function recalcNutrition() {
+  let kcal = currentMeal.staple.kcal, protein = currentMeal.staple.protein;
+  let carb = currentMeal.staple.carb, salt = currentMeal.staple.salt;
+  if (currentMeal.main) {
+    kcal += currentMeal.main.kcal; protein += currentMeal.main.protein;
+    carb += currentMeal.main.carb; salt += currentMeal.main.salt;
+  }
+  for (const s of currentMeal.sides) {
+    kcal += s.kcal; protein += s.protein; carb += s.carb; salt += s.salt;
+  }
+  if (currentMeal.soup) {
+    kcal += currentMeal.soup.kcal; protein += currentMeal.soup.protein;
+    carb += currentMeal.soup.carb; salt += currentMeal.soup.salt;
+  }
+  currentMeal.nut = { kcal, protein, carb, salt };
+}
+
+// ========== RSY-2 ==========
+let rsy2Type = 'soup';
+
+function toggleRSY2() {
+  const cb = document.getElementById('rsy2-check');
+  cb.checked = !cb.checked;
+  updateRSY2UI();
+}
+
+function onRSY2Change(e) {
+  e.stopPropagation();
+  updateRSY2UI();
+}
+
+function updateRSY2UI() {
+  const checked = document.getElementById('rsy2-check').checked;
+  document.getElementById('rsy2-types').style.display = checked ? 'flex' : 'none';
+  // ミニトグルと同期
+  const mini = document.getElementById('rsy2-mini-check');
+  if (mini) mini.checked = checked;
+  const miniTypes = document.getElementById('rsy2-mini-types');
+  if (miniTypes) miniTypes.style.display = checked ? 'flex' : 'none';
+}
+
+function toggleRSY2Mini() {
+  const mini = document.getElementById('rsy2-mini-check');
+  mini.checked = !mini.checked;
+  onRSY2MiniChange({ stopPropagation: () => {} });
+}
+
+function onRSY2MiniChange(e) {
+  const checked = document.getElementById('rsy2-mini-check').checked;
+  // メインのチェックボックスと同期
+  document.getElementById('rsy2-check').checked = checked;
+  document.getElementById('rsy2-types').style.display = checked ? 'flex' : 'none';
+  document.getElementById('rsy2-mini-types').style.display = checked ? 'flex' : 'none';
+}
+
+function selectRSY2Type(btn) {
+  document.querySelectorAll('.rsy2-type-btn').forEach(b => b.classList.remove('active'));
+  // 同じdata-typeを持つすべてのボタンをアクティブに
+  document.querySelectorAll(`.rsy2-type-btn[data-type="${btn.dataset.type}"]`).forEach(b => b.classList.add('active'));
+  rsy2Type = btn.dataset.type;
+}
+
+// ========== MEAL GENERATION ==========
+let currentMeal = null;
+
+function hasIngredient(keys) {
+  const ings = getIngredients();
+  return keys.some(k => ings.some(i => i.name.includes(k) || k.includes(i.name.slice(0,2))));
+}
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function getUsedIngs(keys) {
+  const ings = getIngredients();
+  return keys.filter(k => ings.some(i => i.name.includes(k) || k.includes(i.name.slice(0,2))));
+}
+
+function generateMeal() {
+  const useRSY2 = document.getElementById('rsy2-check').checked;
+  const ings = getIngredients();
+
+  if (ings.length === 0) {
+    showToast('食材を先に登録してください');
+    return;
+  }
+
+  // 料理スタイルフィルター + 食材フィルター
+  const mainPool = filterByCuisine(RECIPES.main);
+  const sidePool = filterByCuisine(RECIPES.side);
+  const availableMain = mainPool.filter(r => hasIngredient(r.keys));
+  const availableSide = sidePool.filter(r => hasIngredient(r.keys));
+  const availableSoup = RECIPES.soup.filter(r => hasIngredient(r.keys) && r.rsy2type === rsy2Type);
+
+  // RSY-2 pasta requires special staple
+  const isPastaMode = useRSY2 && rsy2Type === 'pasta';
+  const isPortidgeMode = useRSY2 && (rsy2Type === 'porridge' || rsy2Type === 'risotto');
+
+  // Pick staple
+  const staple = isPastaMode ? PASTA_STAPLE : RECIPES.staple[Math.floor(Math.random() * RECIPES.staple.length)];
+
+  // Nutrition targets (with staple already counted):
+  // Total: 350-500kcal, P:30-45g, C:100-120g, Salt:3-5g
+  // After staple: remaining budget (approximate)
+  const budget = { kcal: 350 - staple.kcal, kcalMax: 500 - staple.kcal, protein: 30 - staple.protein, proteinMax: 45 - staple.protein, carb: 100 - staple.carb, carbMax: 120 - staple.carb, salt: 3 - staple.salt, saltMax: 5 - staple.salt };
+
+  // Pick main dish (highest protein priority)
+  const shuffledMain = shuffle(availableMain);
+  let chosenMain = shuffledMain[0] || null;
+
+  if (!chosenMain && !isPortidgeMode) {
+    // No available main - show a default note
+    chosenMain = null;
+  }
+
+  // 登録食材でレシピが見つからない場合は警告
+  if (!chosenMain && !isPortidgeMode && availableMain.length === 0) {
+    showToast('登録食材で作れる主菜が見つかりません。食材を追加してください。');
+    return;
+  }
+
+  // Pick RSY-2 soup if requested（登録食材のみ）
+  let chosenSoup = null;
+  if (useRSY2 && availableSoup.length > 0) {
+    chosenSoup = shuffle(availableSoup)[0];
+  } else if (useRSY2 && availableSoup.length === 0) {
+    showToast('登録食材でRSY-2メニューが作れません。食材を追加するか種類を変えてください。');
+    return;
+  }
+
+  // Calculate used kcal so far
+  let usedKcal = staple.kcal;
+  let usedProt = staple.protein;
+  let usedCarb = staple.carb;
+  let usedSalt = staple.salt;
+
+  if (chosenMain) { usedKcal += chosenMain.kcal; usedProt += chosenMain.protein; usedCarb += chosenMain.carb; usedSalt += chosenMain.salt; }
+  if (chosenSoup) { usedKcal += chosenSoup.kcal; usedProt += chosenSoup.protein; usedCarb += chosenSoup.carb; usedSalt += chosenSoup.salt; }
+
+  // 副菜が1件もマッチしない場合のみエラー
+  if (availableSide.length === 0) {
+    showToast('登録食材で作れる副菜が見つかりません。野菜・きのこ等を追加してください。');
+    return;
+  }
+
+  // Pick 2-3 side dishes（登録食材のみ）
+  const shuffledSide = shuffle(availableSide);
+  const chosenSides = [];
+  const TARGET_SIDES = chosenMain ? 2 : 3;
+
+  for (const s of shuffledSide) {
+    if (chosenSides.length >= TARGET_SIDES) break;
+    const newKcal = usedKcal + s.kcal;
+    const newSalt = usedSalt + s.salt;
+    // 1品目は必ず追加、2品目以降だけカロリー・塩分ガードを適用
+    if (chosenSides.length > 0 && (newKcal > 530 || newSalt > 5.5)) continue;
+    chosenSides.push(s);
+    usedKcal += s.kcal; usedProt += s.protein; usedCarb += s.carb; usedSalt += s.salt;
+  }
+
+  currentMeal = { staple, main: chosenMain, sides: chosenSides, soup: chosenSoup, useRSY2, rsy2Type,
+    nut: { kcal: usedKcal, protein: usedProt, carb: usedCarb, salt: usedSalt } };
+
+  renderMeal(currentMeal);
+}
+
+function renderMeal(meal) {
+  const el = document.getElementById('meal-dishes');
+  let html = '';
+
+  // Staple
+  html += `<div class="meal-section-label">主食</div>`;
+  html += dishCard(meal.staple, false, false, null, 'staple');
+
+  // Main
+  if (meal.main) {
+    html += `<div class="meal-section-label">主菜</div>`;
+    const usedKeys = getUsedIngs(meal.main.keys);
+    html += dishCard(meal.main, false, false, usedKeys, 'main');
+  }
+
+  // Sides
+  if (meal.sides.length > 0) {
+    html += `<div class="meal-section-label">副菜</div>`;
+    meal.sides.forEach((s, idx) => {
+      const usedKeys = getUsedIngs(s.keys);
+      html += dishCard(s, false, false, usedKeys, `side-${idx}`);
+    });
+  }
+
+  // Soup / RSY-2
+  if (meal.soup) {
+    const labelMap = { soup:'汁物・スープ', potage:'ポタージュ', porridge:'お粥', risotto:'リゾット', pasta:'パスタソース' };
+    html += `<div class="meal-section-label">${meal.useRSY2 ? '🔶 RSY-2 / ' : ''}${labelMap[meal.rsy2Type] || '汁物'}</div>`;
+    const usedKeys = getUsedIngs(meal.soup.keys);
+    html += dishCard(meal.soup, meal.useRSY2, meal.useRSY2, usedKeys, 'soup');
+  }
+
+  el.innerHTML = html;
+  renderNutrition(meal.nut);
+  document.getElementById('meal-result').style.display = 'block';
+}
+
+function dishCard(recipe, showRSY2Tag, isRSY2, usedKeys, slotKey) {
+  const tags = [];
+  if (showRSY2Tag) tags.push(`<span class="tag tag-rsy2">🔶 RSY-2</span>`);
+  if (usedKeys && usedKeys.length > 0) {
+    tags.push(`<span class="tag tag-ing">📦 ${usedKeys.join('・')}</span>`);
+  }
+  const ingsList = recipe.ings
+    ? `<div class="dish-ings"><ul>${recipe.ings.map(i => `<li>${esc(i)}</li>`).join('')}</ul></div>`
+    : '';
+  return `<div class="dish-card">
+    <div class="dish-card-header">
+      <button class="dish-name-btn" onclick="toggleDishIng(this)" style="flex:1">
+        <div class="dish-name-inner">
+          <span class="dish-name">${esc(recipe.name)}</span>
+          ${recipe.ings ? '<span class="dish-expand-icon">▶</span>' : ''}
+        </div>
+        <div class="dish-desc">${esc(recipe.desc)}</div>
+        ${ingsList}
+      </button>
+      <button class="btn-dish-edit" onclick="openDishEdit('${slotKey}')">変更・削除</button>
+    </div>
+    ${tags.length > 0 ? `<div class="dish-tags">${tags.join('')}</div>` : ''}
+  </div>`;
+}
+
+function toggleDishIng(btn) {
+  const ings = btn.querySelector('.dish-ings');
+  const icon = btn.querySelector('.dish-expand-icon');
+  if (!ings) return;
+  const open = ings.style.display === 'block';
+  ings.style.display = open ? 'none' : 'block';
+  if (icon) icon.style.transform = open ? '' : 'rotate(90deg)';
+}
+
+function renderNutrition(nut) {
+  const targets = [
+    { label: 'エネルギー', unit: 'kcal', val: nut.kcal, min: 350, max: 500, barClass: 'bar-kcal' },
+    { label: 'たんぱく質', unit: 'g', val: nut.protein, min: 30, max: 45, barClass: 'bar-protein' },
+    { label: '糖質', unit: 'g', val: nut.carb, min: 100, max: 120, barClass: 'bar-carb' },
+    { label: '食塩相当量', unit: 'g', val: nut.salt, min: 3, max: 5, barClass: 'bar-salt' },
+  ];
+
+  const gridEl = document.getElementById('nut-grid');
+  gridEl.innerHTML = targets.map(t => {
+    const ok = t.val >= t.min && t.val <= t.max;
+    return `<div class="nut-cell">
+      <div class="nut-label">${t.label}</div>
+      <div class="nut-value ${ok ? 'nut-ok' : 'nut-ng'}">${Math.round(t.val * 10) / 10}<span style="font-size:0.7rem;font-weight:400">${t.unit}</span></div>
+      <div class="nut-target">${t.min}〜${t.max}${t.unit}</div>
+    </div>`;
+  }).join('');
+
+  const barsEl = document.getElementById('nut-bars');
+  barsEl.innerHTML = targets.map(t => {
+    const pct = Math.min(Math.round(t.val / t.max * 100), 115);
+    const okColor = t.val >= t.min && t.val <= t.max ? t.barClass : (t.val < t.min ? '#ef4444' : '#f97316');
+    return `<div class="nut-bar-wrap">
+      <div class="nut-bar-label">
+        <span>${t.label}</span>
+        <span>${Math.round(t.val * 10) / 10}${t.unit} / 目標 ${t.min}〜${t.max}${t.unit}</span>
+      </div>
+      <div class="nut-bar-bg"><div class="nut-bar-fill ${t.barClass}" style="width:${pct}%;background-color:${okColor}"></div></div>
+    </div>`;
+  }).join('');
+}
+
+// ========== SAVE MEAL ==========
+function saveMeal() {
+  if (!currentMeal) return;
+  const saved = getSaved();
+  const now = new Date();
+  const label = `${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+  saved.unshift({ id: Date.now(), date: label, meal: currentMeal });
+  setSaved(saved);
+  showToast('献立を保存しました');
+}
+
+// ========== SAVED LIST ==========
+function renderSaved() {
+  const saved = getSaved();
+  const el = document.getElementById('saved-list');
+  const empty = document.getElementById('saved-empty');
+
+  if (saved.length === 0) {
+    el.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+
+  el.innerHTML = saved.map(s => {
+    const m = s.meal;
+    const dishes = [m.staple.name];
+    if (m.main) dishes.push(m.main.name);
+    m.sides.forEach(sd => dishes.push(sd.name));
+    if (m.soup) dishes.push(m.soup.name);
+    const n = m.nut;
+    const rsy2label = m.useRSY2 ? `<span style="color:var(--accent);font-size:0.78rem">🔶 RSY-2使用</span> ` : '';
+    return `<div class="saved-card">
+      <div class="saved-header">
+        <span class="saved-date">📅 ${esc(s.date)}</span>
+        <button class="btn btn-danger" style="padding:4px 12px;font-size:0.78rem" onclick="deleteSaved(${s.id})">削除</button>
+      </div>
+      <div class="saved-dishes">${rsy2label}${dishes.map(d => '・' + esc(d)).join('<br>')}</div>
+      <div class="saved-nut">
+        <span>🔥 ${Math.round(n.kcal)}kcal</span>
+        <span>🥩 P ${Math.round(n.protein * 10) / 10}g</span>
+        <span>🍚 糖 ${Math.round(n.carb * 10) / 10}g</span>
+        <span>🧂 塩 ${Math.round(n.salt * 10) / 10}g</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function deleteSaved(id) {
+  setSaved(getSaved().filter(s => s.id !== id));
+  renderSaved();
+  showToast('削除しました');
+}
+
+// ========== UTILS ==========
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// Enter key for ingredient add
+document.getElementById('ing-amount').addEventListener('keydown', e => { if (e.key === 'Enter') addIngredient(); });
+document.getElementById('ing-name').addEventListener('keydown', e => { if (e.key === 'Enter') addIngredient(); });
+
+// Init
+renderIngredients();
+</script>
+</body>
+</html>
